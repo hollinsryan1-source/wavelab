@@ -202,7 +202,7 @@
             octave: 4,
             activeNotes: new Set(),
             isPlaying: false,
-            preset: 'Init',
+            preset: 'Eerie Clouds',
             seqRunning: false,
             volume: -8,
             visMode: 'all',
@@ -533,7 +533,7 @@
 
         // Presets
         const PRESETS = {
-            'Init': { wave: 'sine', attack: 0.01, decay: 0.2, sustain: 0.5, release: 0.8, filterFreq: 5000, filterRes: 1, delayTime: 0, delayFeedback: 0, reverbMix: 0, distortion: 0, chorus: 0, octave: 4 },
+            'Eerie Clouds': { wave: 'sine', attack: 0.01, decay: 0.2, sustain: 0.5, release: 0.8, filterFreq: 5000, filterRes: 1, delayTime: 0, delayFeedback: 0, reverbMix: 0, distortion: 0, chorus: 0, octave: 4 },
             'Fat Bass': { wave: 'sawtooth', attack: 0.01, decay: 0.3, sustain: 0.7, release: 0.2, filterFreq: 800, filterRes: 8, delayTime: 0, delayFeedback: 0, reverbMix: 0, distortion: 0.3, chorus: 0, octave: 2 },
             'Dreamy Pad': { wave: 'triangle', attack: 0.8, decay: 0.5, sustain: 0.8, release: 2.0, filterFreq: 3000, filterRes: 2, delayTime: 0.4, delayFeedback: 0.35, reverbMix: 0.6, distortion: 0, chorus: 4, octave: 4 },
             'Pluck': { wave: 'square', attack: 0.001, decay: 0.15, sustain: 0, release: 0.1, filterFreq: 4000, filterRes: 3, delayTime: 0.25, delayFeedback: 0.2, reverbMix: 0.15, distortion: 0, chorus: 0, octave: 4 },
@@ -1198,13 +1198,13 @@
 
                         // Note label
                         const labelAngle = startAngle + segAngle / 2;
-                        const labelR = radius - 14;
+                        const labelR = radius - 22;
                         const lx = cx + Math.cos(labelAngle) * labelR;
                         const ly = cy + Math.sin(labelAngle) * labelR;
                         ctx.fillStyle = energy > 0.15
                             ? `hsla(${hue}, 80%, 75%, ${0.5 + energy * 0.5})`
                             : 'rgba(100,116,139,0.5)';
-                        ctx.font = `${energy > 0.15 ? 'bold ' : ''}10px monospace`;
+                        ctx.font = `${energy > 0.15 ? 'bold ' : ''}20px monospace`;
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
                         ctx.fillText(NOTE_NAMES[n], lx, ly);
@@ -1235,7 +1235,7 @@
                         const lx = cx + Math.cos(angle) * (radius - 14);
                         const ly = cy + Math.sin(angle) * (radius - 14);
                         ctx.fillStyle = `hsla(${NOTE_HUES[n]}, 60%, 55%, 0.5)`;
-                        ctx.font = '10px monospace';
+                        ctx.font = '20px monospace';
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
                         ctx.fillText(NOTE_NAMES[n], lx, ly);
@@ -1996,7 +1996,7 @@
             // Presets — grouped dropdown
             const presetsContainer = document.getElementById('presets');
             const presetGroups = [
-                { label: 'Classic', presets: ['Init', 'Fat Bass', 'Dreamy Pad', 'Pluck', 'Sci-Fi Lead', 'Warm Keys'] },
+                { label: 'Classic', presets: ['Eerie Clouds', 'Fat Bass', 'Dreamy Pad', 'Pluck', 'Sci-Fi Lead', 'Warm Keys'] },
                 { label: 'Massive', presets: ['Massive Saw', 'Massive Pluck', 'Massive Growl', 'Massive Pad', 'Massive Lead'] },
                 { label: 'Ambient', presets: ['Glass Shimmer', 'Deep Space', 'Ethereal Choir', 'Crystal Rain', 'Frozen Lake'] },
                 { label: 'Lo-fi', presets: ['Dusty Rhodes', 'Vinyl Keys', 'Tape Pad', 'Muted Bell', 'Sunday Morning'] },
@@ -2025,7 +2025,39 @@
                 render();
             });
 
+            // Build flat list of all preset names for cycling
+            const allPresetNames = presetGroups.flatMap(g => g.presets.filter(n => PRESETS[n]));
+
+            function cyclePreset(dir) {
+                const idx = allPresetNames.indexOf(state.preset);
+                const next = (idx + dir + allPresetNames.length) % allPresetNames.length;
+                loadPreset(allPresetNames[next]);
+                select.value = allPresetNames[next];
+                render();
+            }
+
+            const presetNav = document.createElement('div');
+            presetNav.className = 'flex items-center gap-1 ml-2 flex-shrink-0';
+
+            const prevBtn = document.createElement('button');
+            prevBtn.innerHTML = '&#9664;';
+            prevBtn.className = 'w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold transition-all hover:scale-110 active:scale-95';
+            prevBtn.style.cssText = 'background: rgba(99,102,241,0.15); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3);';
+            prevBtn.addEventListener('click', () => cyclePreset(-1));
+
+            const nextBtn = document.createElement('button');
+            nextBtn.innerHTML = '&#9654;';
+            nextBtn.className = 'w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold transition-all hover:scale-110 active:scale-95';
+            nextBtn.style.cssText = 'background: rgba(99,102,241,0.15); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3);';
+            nextBtn.addEventListener('click', () => cyclePreset(1));
+
+            presetNav.appendChild(prevBtn);
+            presetNav.appendChild(nextBtn);
+
             presetsContainer.appendChild(select);
+            presetsContainer.appendChild(presetNav);
+            presetsContainer.style.display = 'flex';
+            presetsContainer.style.alignItems = 'center';
 
             // Visualizer modes
             const visContainer = document.getElementById('vis-modes');
@@ -2090,8 +2122,17 @@
                 btn.addEventListener('click', () => {
                     state.wave = w;
                     updateSynthParams();
-                    render();
+                    // Update button styles locally instead of re-rendering
+                    waveGrid.querySelectorAll('button').forEach(b => {
+                        const bw = b.dataset.wave;
+                        if (bw === w) {
+                            b.className = 'py-1 rounded-lg text-center transition-all bg-sky-500/20 text-sky-300 border border-sky-500/40';
+                        } else {
+                            b.className = 'py-1 rounded-lg text-center transition-all bg-slate-800/60 text-slate-500 border border-slate-700/40 hover:text-slate-300';
+                        }
+                    });
                 });
+                btn.dataset.wave = w;
                 waveGrid.appendChild(btn);
             });
             oscDiv.appendChild(waveGrid);

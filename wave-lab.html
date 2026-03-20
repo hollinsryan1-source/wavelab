@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Wave Lab - Synthesizer</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -141,6 +141,42 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+        }
+
+        /* ===== Mobile Responsive ===== */
+        @media (max-width: 768px) {
+            .piano-key.white {
+                width: 1.3rem;
+                height: 6rem;
+            }
+            .piano-key.black {
+                width: 1rem;
+                height: 3.8rem;
+                margin-left: -0.5rem;
+                margin-right: -0.5rem;
+            }
+            #controls {
+                grid-template-columns: repeat(3, 1fr) !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .piano-key.white {
+                width: 1rem;
+                height: 5rem;
+            }
+            .piano-key.black {
+                width: 0.8rem;
+                height: 3rem;
+                margin-left: -0.4rem;
+                margin-right: -0.4rem;
+            }
+            #controls {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
+            .knob {
+                transform: scale(0.85);
+            }
         }
     </style>
 </head>
@@ -1479,6 +1515,26 @@
 
             window.addEventListener('mouseup', () => { dragging = false; });
 
+            // Touch support for knobs
+            knob.addEventListener('touchstart', (e) => {
+                dragging = true;
+                startY = e.touches[0].clientY;
+                startVal = currentVal;
+                e.preventDefault();
+            }, { passive: false });
+
+            window.addEventListener('touchmove', (e) => {
+                if (!dragging) return;
+                const delta = startY - e.touches[0].clientY;
+                const range = max - min;
+                const newVal = Math.min(max, Math.max(min, startVal + (delta / 150) * range));
+                currentVal = step < 1 ? parseFloat(newVal.toFixed(2)) : Math.round(newVal / step) * step;
+                updateVisual(currentVal);
+                onChange(currentVal);
+            }, { passive: false });
+
+            window.addEventListener('touchend', () => { dragging = false; });
+
             container.appendChild(label_el);
             container.appendChild(knob);
             container.appendChild(value_el);
@@ -1555,9 +1611,11 @@
             let curX = xValue, curY = yValue;
 
             function handleMove(e) {
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
                 const rect = pad.getBoundingClientRect();
-                const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+                const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+                const y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
                 curX = xMin + x * (xMax - xMin);
                 curY = yMin + (1 - y) * (yMax - yMin);
                 updateVisual(curX, curY);
@@ -1576,6 +1634,20 @@
             });
 
             window.addEventListener('mouseup', () => { dragging = false; });
+
+            // Touch support for XY pad
+            pad.addEventListener('touchstart', (e) => {
+                dragging = true;
+                handleMove(e);
+                e.preventDefault();
+            }, { passive: false });
+
+            window.addEventListener('touchmove', (e) => {
+                if (!dragging) return;
+                handleMove(e);
+            }, { passive: false });
+
+            window.addEventListener('touchend', () => { dragging = false; });
 
             container.appendChild(pad);
             container.appendChild(stats);
@@ -1618,7 +1690,7 @@
                             <!-- Logo & Title -->
                             <div class="text-center mb-10">
                                 <div class="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl font-bold glow-gradient mx-auto mb-5">~</div>
-                                <h1 class="text-6xl font-bold mb-3 text-gradient">Wave Lab</h1>
+                                <h1 class="text-4xl sm:text-6xl font-bold mb-3 text-gradient">Wave Lab</h1>
                                 <p class="text-slate-400 text-lg">Synthesizer & Sound Explorer</p>
                             </div>
 
@@ -1671,7 +1743,7 @@
 
                             <!-- Launch Button -->
                             <div class="text-center">
-                                <button id="launch-btn" class="px-14 py-6 rounded-2xl text-2xl font-bold text-white transition-all hover:scale-105 active:scale-95 glow-gradient">
+                                <button id="launch-btn" class="px-8 sm:px-14 py-4 sm:py-6 rounded-2xl text-xl sm:text-2xl font-bold text-white transition-all hover:scale-105 active:scale-95 glow-gradient">
                                     Launch Synthesizer
                                 </button>
                             </div>
@@ -1697,7 +1769,7 @@
                     </div>
 
                     <!-- Synth Preset Selector -->
-                    <div class="flex items-center gap-3 mb-2 px-3 py-2 rounded-xl border" style="background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(56,189,248,0.08)); border-color: rgba(99,102,241,0.3);">
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 mb-2 px-3 py-2 rounded-xl border" style="background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(56,189,248,0.08)); border-color: rgba(99,102,241,0.3);">
                         <span class="text-xs font-semibold uppercase tracking-wider" style="color: #818cf8;">Synth Preset</span>
                         <div class="flex-1" id="presets"></div>
                     </div>
@@ -1738,16 +1810,16 @@
                         <div class="flex items-center justify-between mb-1.5">
                             <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Keyboard</h3>
                             <div class="flex items-center gap-3">
-                                <p class="text-xs text-slate-600">Computer keys (A-K) · Click piano keys</p>
+                                <p class="text-xs text-slate-600 hidden sm:inline">Computer keys (A-K) · Click piano keys</p>
                                 <span id="midi-status" class="text-xs">
                                     <span style="color:#64748b;">● No MIDI device</span>
                                 </span>
                             </div>
                         </div>
-                        <div class="flex items-center gap-3">
-                            <div class="flex justify-center items-start flex-1 overflow-x-auto" id="piano-keys"></div>
+                        <div class="flex items-center gap-2 sm:gap-3">
+                            <div class="flex justify-center items-start flex-1 overflow-x-auto" id="piano-keys" style="-webkit-overflow-scrolling: touch;"></div>
                             <!-- Chord Display -->
-                            <div id="chord-display" class="flex items-center justify-center rounded-xl flex-shrink-0" style="background: linear-gradient(135deg, rgba(56,189,248,0.06), rgba(168,85,247,0.06)); border: 1px solid rgba(56,189,248,0.1); width: 7rem; height: 8rem;">
+                            <div id="chord-display" class="flex items-center justify-center rounded-xl flex-shrink-0 hidden sm:flex" style="background: linear-gradient(135deg, rgba(56,189,248,0.06), rgba(168,85,247,0.06)); border: 1px solid rgba(56,189,248,0.1); width: 7rem; height: 8rem;">
                                 <div class="text-center">
                                     <div id="chord-name" style="font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; opacity: 0.2; background: linear-gradient(135deg, #38bdf8, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; transition: opacity 0.15s;">—</div>
                                     <div id="chord-notes" class="text-xs text-slate-500" style="min-height: 1em;"></div>
@@ -1767,19 +1839,19 @@
                     <!-- Step Sequencer -->
                     <div class="bg-slate-900/60 rounded-xl p-2.5 border border-slate-800/50 mb-2">
                         <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Step Sequencer</h3>
-                        <div id="sequencer"></div>
+                        <div class="overflow-x-auto" style="-webkit-overflow-scrolling: touch;"><div id="sequencer" style="min-width: 600px;"></div></div>
                     </div>
 
                     <!-- Drum Machine -->
                     <div class="bg-slate-900/60 rounded-xl p-2.5 border border-slate-800/50 mb-2" style="border-color: rgba(249,115,22,0.2)">
                         <h3 class="text-xs font-semibold uppercase tracking-wider mb-1.5" style="color: #fb923c">Drum Machine</h3>
-                        <div id="drum-machine"></div>
+                        <div class="overflow-x-auto" style="-webkit-overflow-scrolling: touch;"><div id="drum-machine" style="min-width: 600px;"></div></div>
                     </div>
 
                     <!-- Bass Machine -->
                     <div class="bg-slate-900/60 rounded-xl p-2.5 border border-slate-800/50" style="border-color: rgba(16,185,129,0.25)">
                         <h3 class="text-xs font-semibold uppercase tracking-wider mb-1.5" style="color: #10b981">Bass Machine</h3>
-                        <div id="bass-machine"></div>
+                        <div class="overflow-x-auto" style="-webkit-overflow-scrolling: touch;"><div id="bass-machine" style="min-width: 600px;"></div></div>
                     </div>
                 </div>
             `;
@@ -1795,7 +1867,7 @@
 
             const select = document.createElement('select');
             select.className = 'text-sm font-medium rounded-lg px-4 py-2 cursor-pointer outline-none flex-1';
-            select.style.cssText = 'background: rgba(30,41,59,0.9); color: #c7d2fe; border: 1px solid rgba(99,102,241,0.5); appearance: auto; min-width: 200px;';
+            select.style.cssText = 'background: rgba(30,41,59,0.9); color: #c7d2fe; border: 1px solid rgba(99,102,241,0.5); appearance: auto; min-width: 200px; width: 100%;';
 
             presetGroups.forEach(group => {
                 const optgroup = document.createElement('optgroup');
@@ -2018,6 +2090,16 @@
                 btn.addEventListener('mouseleave', () => {
                     if (state.activeNotes.has(note)) stopNote(note);
                 });
+                // Touch support for mobile
+                btn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    playNote(note);
+                }, { passive: false });
+                btn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    stopNote(note);
+                }, { passive: false });
+                btn.addEventListener('touchcancel', () => stopNote(note));
 
                 pianoContainer.appendChild(btn);
             }

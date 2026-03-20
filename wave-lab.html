@@ -210,7 +210,7 @@
             panelViz: true,
             // Sequencer state
             gridSteps: 16,
-            gridNotes: ['C', 'D', 'E', 'F', 'G', 'A', 'B'],
+            gridNotes: ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'],
             grid: null,
             currentStep: -1,
             bpm: 120,
@@ -2455,9 +2455,10 @@
             const noteLabelDiv = document.createElement('div');
             noteLabelDiv.className = 'flex flex-col gap-px mr-1';
             [...state.gridNotes].reverse().forEach((n) => {
+                const isSharp = n.includes('#');
                 const label = document.createElement('div');
                 label.className = 'h-5 flex items-center justify-end pr-1';
-                label.innerHTML = `<span class="text-xs font-mono text-slate-500">${n}</span>`;
+                label.innerHTML = `<span class="text-xs font-mono" style="color: ${isSharp ? '#818cf8' : '#64748b'};">${n}</span>`;
                 noteLabelDiv.appendChild(label);
             });
             gridContainer.appendChild(noteLabelDiv);
@@ -2473,9 +2474,12 @@
                     cell.dataset.seqCol = col;
                     const isActive = state.grid[row][col];
                     const isCurrent = state.currentStep === col && state.seqRunning;
+                    const noteForRow = state.gridNotes[state.gridNotes.length - 1 - row];
+                    const isSharpRow = noteForRow && noteForRow.includes('#');
+                    const inactiveBg = isSharpRow ? '#131b2e' : '#0f172a';
                     cell.style.background = isActive
                         ? isCurrent ? '#38bdf8' : '#6366f1'
-                        : isCurrent ? '#1e293b' : '#0f172a';
+                        : isCurrent ? '#1e293b' : inactiveBg;
                     cell.style.border = `1px solid ${isCurrent ? '#38bdf844' : '#1e293b'}`;
                     cell.style.boxShadow = isActive && isCurrent ? '0 0 8px #38bdf888' : 'none';
                     cell.addEventListener('click', () => { toggleGridCell(row, col); });

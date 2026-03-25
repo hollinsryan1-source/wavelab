@@ -234,6 +234,49 @@
                 transform: scale(0.85);
             }
         }
+
+        .pedal {
+            width: 5.5rem;
+            min-height: 6.5rem;
+            border-radius: 0.75rem;
+            padding: 0.5rem;
+            cursor: grab;
+            transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .pedal:active { cursor: grabbing; }
+        .pedal.dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+        }
+        .pedal.drag-over {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(56,189,248,0.3);
+        }
+        .pedal.bypassed {
+            opacity: 0.35;
+        }
+        .pedal-led {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            position: absolute;
+            top: 0.4rem;
+            right: 0.4rem;
+        }
+        .pedal-connector {
+            width: 2rem;
+            height: 2px;
+            flex-shrink: 0;
+            align-self: center;
+        }
     </style>
 </head>
 <body>
@@ -260,6 +303,8 @@
             isPlaying: false,
             preset: 'Eerie Clouds',
             theme: 'dark',
+            pedalOrder: ['filter', 'distortion', 'chorus', 'delay', 'reverb'],
+            pedalBypassed: { filter: false, distortion: false, chorus: false, delay: false, reverb: false },
             seqRunning: false,
             volume: -8,
             visMode: 'all',
@@ -972,6 +1017,39 @@
 
         function updateVolume() {
             if (audio.synth) audio.synth.volume.value = state.volume;
+        }
+
+        function rebuildAudioChain() {
+            if (!audio.synth) return;
+
+            // Disconnect everything
+            try {
+                audio.synth.disconnect();
+                audio.filter.disconnect();
+                audio.distortion.disconnect();
+                audio.chorus.disconnect();
+                audio.delay.disconnect();
+                audio.reverb.disconnect();
+            } catch(e) {}
+
+            // Build chain based on pedal order, skipping bypassed
+            const effectMap = {
+                filter: audio.filter,
+                distortion: audio.distortion,
+                chorus: audio.chorus,
+                delay: audio.delay,
+                reverb: audio.reverb,
+            };
+
+            const activeEffects = state.pedalOrder
+                .filter(key => !state.pedalBypassed[key])
+                .map(key => effectMap[key]);
+
+            // Chain: synth → [active effects in order] → analyser → fft → destination
+            const chain = [audio.synth, ...activeEffects, audio.analyser, audio.fft, Tone.Destination];
+            for (let i = 0; i < chain.length - 1; i++) {
+                chain[i].connect(chain[i + 1]);
+            }
         }
 
         // Load preset
@@ -2014,6 +2092,15 @@
                         </div>
                     </div>
 
+                    <!-- Effects Pedal Board -->
+                    <div class="rounded-xl p-2.5 border mb-2" style="background: var(--bg-card); border-color: rgba(56,189,248,0.2);">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-xs font-semibold uppercase tracking-wider" style="color: #38bdf8;">Signal Chain</h3>
+                            <p class="text-xs" style="color: var(--text-dim);">Drag to reorder · Click to bypass</p>
+                        </div>
+                        <div id="pedal-board" class="flex items-center gap-2 overflow-x-auto pb-1" style="-webkit-overflow-scrolling: touch;"></div>
+                    </div>
+
                     <!-- Effects & Controls Panel (starts collapsed) -->
                     <div class="collapsible-panel mb-2">
                         <button onclick="togglePanel('panelEffects')" class="w-full flex items-center justify-between px-3 py-1.5 rounded-lg border transition-colors cursor-pointer" style="background: rgba(234,179,8,0.12); border-color: rgba(234,179,8,0.3);">
@@ -2056,6 +2143,152 @@
                     </div>
                 </div>
             `;
+
+            // Pedal Board
+            const pedalBoard = document.getElementById('pedal-board');
+            if (pedalBoard) {
+                pedalBoard.innerHTML = '';
+                const PEDAL_CONFIG = {
+                    filter: { name: 'Filter', icon: '◇', color: '#38bdf8', accent: 'rgba(56,189,248,0.15)', border: 'rgba(56,189,248,0.4)' },
+                    distortion: { name: 'Distort', icon: '⚡', color: '#f97316', accent: 'rgba(249,115,22,0.15)', border: 'rgba(249,115,22,0.4)' },
+                    chorus: { name: 'Chorus', icon: '≋', color: '#a855f7', accent: 'rgba(168,85,247,0.15)', border: 'rgba(168,85,247,0.4)' },
+                    delay: { name: 'Delay', icon: '◌', color: '#10b981', accent: 'rgba(16,185,129,0.15)', border: 'rgba(16,185,129,0.4)' },
+                    reverb: { name: 'Reverb', icon: '○', color: '#6366f1', accent: 'rgba(99,102,241,0.15)', border: 'rgba(99,102,241,0.4)' },
+                };
+
+                function getActiveValue(key) {
+                    switch(key) {
+                        case 'filter': return state.filterFreq < 4999 || state.filterRes > 1.1 ? Math.round(state.filterFreq) + 'Hz' : 'Off';
+                        case 'distortion': return state.distortion > 0 ? Math.round(state.distortion * 100) + '%' : 'Off';
+                        case 'chorus': return state.chorus > 0 ? state.chorus.toFixed(1) : 'Off';
+                        case 'delay': return state.delayTime > 0.01 ? (state.delayTime * 1000).toFixed(0) + 'ms' : 'Off';
+                        case 'reverb': return state.reverbMix > 0.01 ? Math.round(state.reverbMix * 100) + '%' : 'Off';
+                        default: return '';
+                    }
+                }
+
+                let draggedPedal = null;
+
+                state.pedalOrder.forEach((key, idx) => {
+                    // Add connector line before each pedal (except first)
+                    if (idx > 0) {
+                        const conn = document.createElement('div');
+                        conn.className = 'pedal-connector';
+                        conn.style.background = 'linear-gradient(90deg, var(--text-dim), var(--text-muted))';
+                        pedalBoard.appendChild(conn);
+                    }
+
+                    const cfg = PEDAL_CONFIG[key];
+                    const isBypassed = state.pedalBypassed[key];
+                    const pedal = document.createElement('div');
+                    pedal.className = `pedal${isBypassed ? ' bypassed' : ''}`;
+                    pedal.draggable = true;
+                    pedal.dataset.pedalKey = key;
+                    pedal.style.background = cfg.accent;
+                    pedal.style.border = `1.5px solid ${cfg.border}`;
+
+                    // LED indicator
+                    const led = document.createElement('div');
+                    led.className = 'pedal-led';
+                    led.style.background = isBypassed ? '#475569' : cfg.color;
+                    led.style.boxShadow = isBypassed ? 'none' : `0 0 6px ${cfg.color}`;
+
+                    // Icon
+                    const icon = document.createElement('div');
+                    icon.style.cssText = `font-size: 1.5rem; line-height: 1; color: ${cfg.color}; opacity: ${isBypassed ? '0.3' : '1'};`;
+                    icon.textContent = cfg.icon;
+
+                    // Name
+                    const name = document.createElement('div');
+                    name.style.cssText = `font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: ${cfg.color}; opacity: ${isBypassed ? '0.4' : '0.8'};`;
+                    name.textContent = cfg.name;
+
+                    // Value
+                    const val = document.createElement('div');
+                    val.style.cssText = `font-size: 0.6rem; font-family: monospace; color: var(--text-muted);`;
+                    val.textContent = getActiveValue(key);
+
+                    pedal.appendChild(led);
+                    pedal.appendChild(icon);
+                    pedal.appendChild(name);
+                    pedal.appendChild(val);
+
+                    // Click to bypass
+                    pedal.addEventListener('click', (e) => {
+                        if (e.detail > 0 && !pedal.classList.contains('dragging')) {
+                            state.pedalBypassed[key] = !state.pedalBypassed[key];
+                            rebuildAudioChain();
+                            render();
+                        }
+                    });
+
+                    // Drag events
+                    pedal.addEventListener('dragstart', (e) => {
+                        draggedPedal = key;
+                        pedal.classList.add('dragging');
+                        e.dataTransfer.effectAllowed = 'move';
+                    });
+                    pedal.addEventListener('dragend', () => {
+                        pedal.classList.remove('dragging');
+                        draggedPedal = null;
+                        pedalBoard.querySelectorAll('.pedal').forEach(p => p.classList.remove('drag-over'));
+                    });
+                    pedal.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        if (draggedPedal && draggedPedal !== key) {
+                            pedal.classList.add('drag-over');
+                        }
+                    });
+                    pedal.addEventListener('dragleave', () => {
+                        pedal.classList.remove('drag-over');
+                    });
+                    pedal.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        pedal.classList.remove('drag-over');
+                        if (draggedPedal && draggedPedal !== key) {
+                            const fromIdx = state.pedalOrder.indexOf(draggedPedal);
+                            const toIdx = state.pedalOrder.indexOf(key);
+                            state.pedalOrder.splice(fromIdx, 1);
+                            state.pedalOrder.splice(toIdx, 0, draggedPedal);
+                            rebuildAudioChain();
+                            render();
+                        }
+                    });
+
+                    // Touch drag for mobile
+                    let touchStartX = 0;
+                    pedal.addEventListener('touchstart', (e) => {
+                        touchStartX = e.touches[0].clientX;
+                    }, { passive: true });
+                    pedal.addEventListener('touchend', (e) => {
+                        const touchEndX = e.changedTouches[0].clientX;
+                        const diff = touchEndX - touchStartX;
+                        if (Math.abs(diff) > 50) {
+                            // Swipe detected — move pedal left or right
+                            const currentIdx = state.pedalOrder.indexOf(key);
+                            const newIdx = diff > 0 ? currentIdx + 1 : currentIdx - 1;
+                            if (newIdx >= 0 && newIdx < state.pedalOrder.length) {
+                                state.pedalOrder.splice(currentIdx, 1);
+                                state.pedalOrder.splice(newIdx, 0, key);
+                                rebuildAudioChain();
+                                render();
+                            }
+                        }
+                    }, { passive: true });
+
+                    pedalBoard.appendChild(pedal);
+                });
+
+                // Input/Output labels
+                const inputLabel = document.createElement('div');
+                inputLabel.style.cssText = 'font-size: 0.55rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); writing-mode: vertical-rl; transform: rotate(180deg); flex-shrink: 0;';
+                inputLabel.textContent = 'Input';
+                const outputLabel = document.createElement('div');
+                outputLabel.style.cssText = 'font-size: 0.55rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); writing-mode: vertical-rl; transform: rotate(180deg); flex-shrink: 0;';
+                outputLabel.textContent = 'Output';
+                pedalBoard.insertBefore(inputLabel, pedalBoard.firstChild);
+                pedalBoard.appendChild(outputLabel);
+            }
 
             // Theme toggle
             document.getElementById('theme-toggle').addEventListener('click', () => {

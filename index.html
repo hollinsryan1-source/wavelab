@@ -15,8 +15,64 @@
 
         body {
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background: #0f172a;
-            color: #e2e8f0;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        body.dark {
+            --bg-primary: #0f172a;
+            --bg-secondary: #0f172a;
+            --bg-card: rgba(15,23,42,0.6);
+            --bg-card-solid: #1e293b;
+            --bg-input: rgba(30,41,59,0.9);
+            --bg-cell: #0f172a;
+            --bg-cell-sharp: #131b2e;
+            --bg-cell-current: #1e293b;
+            --border-subtle: rgba(30,41,59,0.5);
+            --border-card: rgba(30,41,59,0.5);
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --text-dim: #475569;
+            --piano-white: #f1f5f9;
+            --piano-white-hover: #fff;
+            --piano-white-border: #cbd5e1;
+            --piano-black: #1e293b;
+            --piano-black-hover: #334155;
+            --canvas-bg: #0f172a;
+            --canvas-aurora-bg: #020617;
+            --canvas-fade: rgba(15, 23, 42, 0.3);
+            --canvas-aurora-fade: rgba(2, 6, 23, 0.12);
+            --knob-inner: #1e293b;
+            --splash-bg: #020617;
+        }
+
+        body.light {
+            --bg-primary: #f1f5f9;
+            --bg-secondary: #e2e8f0;
+            --bg-card: rgba(255,255,255,0.7);
+            --bg-card-solid: #e2e8f0;
+            --bg-input: rgba(255,255,255,0.9);
+            --bg-cell: #e2e8f0;
+            --bg-cell-sharp: #d6dce6;
+            --bg-cell-current: #cbd5e1;
+            --border-subtle: rgba(148,163,184,0.3);
+            --border-card: rgba(148,163,184,0.3);
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --text-dim: #94a3b8;
+            --piano-white: #ffffff;
+            --piano-white-hover: #f8fafc;
+            --piano-white-border: #94a3b8;
+            --piano-black: #334155;
+            --piano-black-hover: #475569;
+            --canvas-bg: #e2e8f0;
+            --canvas-aurora-bg: #cbd5e1;
+            --canvas-fade: rgba(226, 232, 240, 0.3);
+            --canvas-aurora-fade: rgba(203, 213, 225, 0.12);
+            --knob-inner: #cbd5e1;
+            --splash-bg: #f1f5f9;
         }
 
         .knob {
@@ -29,7 +85,7 @@
 
         .xy-pad {
             cursor: crosshair;
-            background: #0f172a;
+            background: var(--canvas-bg);
             position: relative;
             border-radius: 0.5rem;
             overflow: hidden;
@@ -45,8 +101,8 @@
         }
 
         .piano-key.white {
-            background: #f1f5f9;
-            border: 1px solid #cbd5e1;
+            background: var(--piano-white);
+            border: 1px solid var(--piano-white-border);
             width: 6rem;
             height: 18rem;
             border-radius: 0 0 0.6rem 0.6rem;
@@ -54,7 +110,7 @@
         }
 
         .piano-key.white:hover {
-            background: #fff;
+            background: var(--piano-white-hover);
         }
 
         .piano-key.white.active {
@@ -64,7 +120,7 @@
         }
 
         .piano-key.black {
-            background: #1e293b;
+            background: var(--piano-black);
             width: 3.75rem;
             height: 11.5rem;
             margin-left: -1.875rem;
@@ -75,7 +131,7 @@
         }
 
         .piano-key.black:hover {
-            background: #334155;
+            background: var(--piano-black-hover);
         }
 
         .piano-key.black.active {
@@ -203,6 +259,7 @@
             activeNotes: new Set(),
             isPlaying: false,
             preset: 'Eerie Clouds',
+            theme: 'dark',
             seqRunning: false,
             volume: -8,
             visMode: 'all',
@@ -954,16 +1011,18 @@
                 if (e.repeat) return;
                 if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
-                // Spacebar: toggle drum + bass machines in sync
+                // Spacebar: toggle sequencer + drum + bass machines in sync
                 if (e.key === ' ' || e.code === 'Space') {
                     e.preventDefault();
-                    const anyPlaying = state.drumPlaying || state.bassPlaying;
+                    const anyPlaying = state.seqRunning || state.drumPlaying || state.bassPlaying;
                     if (anyPlaying) {
-                        // Stop both
+                        // Stop all
+                        if (state.seqRunning) startStopSequencer();
                         if (state.drumPlaying) startStopDrums();
                         if (state.bassPlaying) startStopBass();
                     } else {
-                        // Start both in sync
+                        // Start all in sync
+                        startStopSequencer();
                         startStopDrums();
                         startStopBass();
                     }
@@ -1088,7 +1147,7 @@
             canvas.style.height = isMobile ? '250px' : '350px';
             canvas.style.objectFit = 'contain';
             canvas.style.borderRadius = '0.75rem';
-            canvas.style.background = '#0f172a';
+            canvas.style.background = 'var(--canvas-bg)';
             const ctx = canvas.getContext('2d');
 
             const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -1115,7 +1174,7 @@
                 const segAngle = (Math.PI * 2) / 12;
                 const barsPerNote = 5;
 
-                ctx.fillStyle = 'rgba(15, 23, 42, 0.3)';
+                ctx.fillStyle = state.theme === 'dark' ? 'rgba(15, 23, 42, 0.3)' : 'rgba(226, 232, 240, 0.3)';
                 ctx.fillRect(0, 0, W, H);
 
                 if (audio.fft && (state.isPlaying || isAudioActive())) {
@@ -1224,7 +1283,7 @@
                     for (let n = 0; n < 12; n++) {
                         noteEnergy[n] *= 0.9; // decay when stopped
                     }
-                    ctx.strokeStyle = '#334155';
+                    ctx.strokeStyle = state.theme === 'dark' ? '#334155' : '#94a3b8';
                     ctx.lineWidth = 1;
                     ctx.beginPath();
                     ctx.arc(cx, cy, radius, 0, Math.PI * 2);
@@ -1259,7 +1318,7 @@
             canvas.style.width = '100%';
             canvas.style.height = isMobile ? '140px' : '180px';
             canvas.style.borderRadius = '0.75rem';
-            canvas.style.background = '#020617';
+            canvas.style.background = 'var(--canvas-aurora-bg)';
             const ctx = canvas.getContext('2d');
 
             let time = 0;
@@ -1272,7 +1331,7 @@
                 const W = canvas.width;
                 const H = canvas.height;
 
-                ctx.fillStyle = 'rgba(2, 6, 23, 0.12)';
+                ctx.fillStyle = state.theme === 'dark' ? 'rgba(2, 6, 23, 0.12)' : 'rgba(203, 213, 225, 0.12)';
                 ctx.fillRect(0, 0, W, H);
 
                 time += 0.015;
@@ -1602,7 +1661,8 @@
             knob.style.boxShadow = `0 0 12px ${color}33`;
 
             const inner = document.createElement('div');
-            inner.className = 'absolute inset-1 rounded-full bg-slate-800 flex items-center justify-center';
+            inner.className = 'absolute inset-1 rounded-full flex items-center justify-center';
+            inner.style.background = 'var(--knob-inner)';
 
             const indicator = document.createElement('div');
             indicator.className = 'w-1 h-5 rounded-full absolute';
@@ -1619,7 +1679,7 @@
             function updateVisual(val) {
                 const pct = (val - min) / (max - min);
                 const angle = -135 + pct * 270;
-                knob.style.background = `conic-gradient(${color} ${pct * 100}%, #1e293b ${pct * 100}%)`;
+                knob.style.background = `conic-gradient(${color} ${pct * 100}%, var(--knob-inner) ${pct * 100}%)`;
                 indicator.style.transform = `rotate(${angle}deg)`;
                 value_el.innerHTML = `${typeof val === 'number' ? (val < 10 ? val.toFixed(2) : Math.round(val)) : val}${unit ? '<span class="text-slate-500 ml-0.5">' + unit + '</span>' : ''}`;
             }
@@ -1813,13 +1873,14 @@
 
         // Main render
         function render() {
+            document.body.className = state.theme;
             cancelAllAnimations();
             const app = document.getElementById('app');
             app.innerHTML = '';
 
             if (!state.started) {
                 app.innerHTML = `
-                    <div class="min-h-screen bg-slate-950 flex flex-col items-center justify-center px-6" style="font-family: 'Inter', system-ui, sans-serif">
+                    <div class="min-h-screen flex flex-col items-center justify-center px-6" style="background: var(--splash-bg); font-family: 'Inter', system-ui, sans-serif;">
                         <div class="max-w-2xl w-full">
                             <!-- Logo & Title -->
                             <div class="text-center mb-10">
@@ -1890,16 +1951,19 @@
 
             // Build main interface
             app.innerHTML = `
-                <div class="min-h-screen bg-slate-950 text-white p-3" style="font-family: 'Inter', system-ui, sans-serif">
+                <div class="min-h-screen text-white p-3" style="background: var(--bg-primary); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif;">
                     <!-- Header -->
                     <div class="flex items-center justify-between mb-2">
                         <div class="flex items-center gap-3">
                             <div class="w-9 h-9 rounded-xl flex items-center justify-center text-lg font-bold glow-gradient">~</div>
                             <div>
                                 <h1 class="text-lg font-bold text-gradient">Wave Lab</h1>
-                                <p class="text-xs text-slate-500">Synthesizer & Sound Explorer</p>
+                                <p class="text-xs" style="color: var(--text-dim);">Synthesizer & Sound Explorer</p>
                             </div>
                         </div>
+                        <button id="theme-toggle" class="w-9 h-9 rounded-xl flex items-center justify-center text-lg transition-all hover:scale-110 active:scale-95" style="background: var(--bg-card); border: 1px solid var(--border-card);">
+                            ${state.theme === 'dark' ? '☀️' : '🌙'}
+                        </button>
                     </div>
 
                     <!-- Synth Preset Selector -->
@@ -1925,7 +1989,7 @@
                     </div>
 
                     <!-- Piano -->
-                    <div class="bg-slate-900/60 rounded-xl p-2.5 border border-slate-800/50 mb-2">
+                    <div class="rounded-xl p-2.5 border mb-2" style="background: var(--bg-card); border-color: var(--border-card);">
                         <div class="flex items-center justify-between mb-1.5">
                             <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Keyboard</h3>
                             <div class="flex items-center gap-3">
@@ -1966,7 +2030,7 @@
                     </div>
 
                     <!-- Pattern Bank -->
-                    <div class="bg-slate-900/60 rounded-xl p-2.5 border mb-2" style="border-color: rgba(168,85,247,0.25);">
+                    <div class="rounded-xl p-2.5 border mb-2" style="background: var(--bg-card); border-color: rgba(168,85,247,0.25);">
                         <div class="flex items-center justify-between">
                             <h3 class="text-xs font-semibold uppercase tracking-wider" style="color: #a855f7;">Pattern Bank</h3>
                             <div class="flex items-center gap-1.5" id="pattern-bank"></div>
@@ -1974,24 +2038,31 @@
                     </div>
 
                     <!-- Step Sequencer -->
-                    <div class="bg-slate-900/60 rounded-xl p-2.5 border border-slate-800/50 mb-2">
+                    <div class="rounded-xl p-2.5 border mb-2" style="background: var(--bg-card); border-color: var(--border-card);">
                         <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Step Sequencer</h3>
                         <div class="overflow-x-auto" style="-webkit-overflow-scrolling: touch;"><div id="sequencer" style="min-width: 600px;"></div></div>
                     </div>
 
                     <!-- Drum Machine -->
-                    <div class="bg-slate-900/60 rounded-xl p-2.5 border border-slate-800/50 mb-2" style="border-color: rgba(249,115,22,0.2)">
+                    <div class="rounded-xl p-2.5 border mb-2" style="background: var(--bg-card); border-color: rgba(249,115,22,0.2);">
                         <h3 class="text-xs font-semibold uppercase tracking-wider mb-1.5" style="color: #fb923c">Drum Machine</h3>
                         <div class="overflow-x-auto" style="-webkit-overflow-scrolling: touch;"><div id="drum-machine" style="min-width: 600px;"></div></div>
                     </div>
 
                     <!-- Bass Machine -->
-                    <div class="bg-slate-900/60 rounded-xl p-2.5 border border-slate-800/50" style="border-color: rgba(16,185,129,0.25)">
+                    <div class="rounded-xl p-2.5 border" style="background: var(--bg-card); border-color: rgba(16,185,129,0.25);">
                         <h3 class="text-xs font-semibold uppercase tracking-wider mb-1.5" style="color: #10b981">Bass Machine</h3>
                         <div class="overflow-x-auto" style="-webkit-overflow-scrolling: touch;"><div id="bass-machine" style="min-width: 600px;"></div></div>
                     </div>
                 </div>
             `;
+
+            // Theme toggle
+            document.getElementById('theme-toggle').addEventListener('click', () => {
+                state.theme = state.theme === 'dark' ? 'light' : 'dark';
+                document.body.className = state.theme;
+                render();
+            });
 
             // Presets — grouped dropdown
             const presetsContainer = document.getElementById('presets');
@@ -2004,7 +2075,7 @@
 
             const select = document.createElement('select');
             select.className = 'text-sm font-medium rounded-lg px-4 py-2 cursor-pointer outline-none flex-1';
-            select.style.cssText = 'background: rgba(30,41,59,0.9); color: #c7d2fe; border: 1px solid rgba(99,102,241,0.5); appearance: auto; min-width: 200px; width: 100%;';
+            select.style.cssText = 'background: var(--bg-input); color: var(--text-primary); border: 1px solid rgba(99,102,241,0.5); appearance: auto; min-width: 200px; width: 100%;';
 
             presetGroups.forEach(group => {
                 const optgroup = document.createElement('optgroup');
@@ -2106,7 +2177,9 @@
 
             // Oscillator control
             const oscDiv = document.createElement('div');
-            oscDiv.className = 'bg-slate-900/60 rounded-xl p-2.5 border border-slate-800/50';
+            oscDiv.className = 'rounded-xl p-2.5 border';
+            oscDiv.style.background = 'var(--bg-card)';
+            oscDiv.style.borderColor = 'var(--border-card)';
             oscDiv.innerHTML = '<h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Oscillator</h3>';
             const waveGrid = document.createElement('div');
             waveGrid.className = 'grid grid-cols-2 gap-1 mb-2';
@@ -2150,7 +2223,9 @@
 
             // Envelope control
             const envDiv = document.createElement('div');
-            envDiv.className = 'bg-slate-900/60 rounded-xl p-2.5 border border-slate-800/50';
+            envDiv.className = 'rounded-xl p-2.5 border';
+            envDiv.style.background = 'var(--bg-card)';
+            envDiv.style.borderColor = 'var(--border-card)';
             envDiv.innerHTML = '<h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Envelope</h3>';
             const envGrid = document.createElement('div');
             envGrid.className = 'grid grid-cols-2 gap-x-2 gap-y-1';
@@ -2175,7 +2250,9 @@
 
             // Filter control
             const filterDiv = document.createElement('div');
-            filterDiv.className = 'bg-slate-900/60 rounded-xl p-2.5 border border-slate-800/50';
+            filterDiv.className = 'rounded-xl p-2.5 border';
+            filterDiv.style.background = 'var(--bg-card)';
+            filterDiv.style.borderColor = 'var(--border-card)';
             filterDiv.innerHTML = '<h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Filter</h3>';
             const filterPad = createXYPad(
                 state.filterFreq, state.filterRes, 50, 15000, 0, 20,
@@ -2194,7 +2271,9 @@
 
             // Effects control
             const effectsDiv = document.createElement('div');
-            effectsDiv.className = 'bg-slate-900/60 rounded-xl p-2.5 border border-slate-800/50';
+            effectsDiv.className = 'rounded-xl p-2.5 border';
+            effectsDiv.style.background = 'var(--bg-card)';
+            effectsDiv.style.borderColor = 'var(--border-card)';
             effectsDiv.innerHTML = '<h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Effects</h3>';
             const effectsGrid = document.createElement('div');
             effectsGrid.className = 'grid grid-cols-3 gap-x-1 gap-y-1';
@@ -2223,7 +2302,9 @@
 
             // Delay/Reverb XY Pad
             const delayReverbDiv = document.createElement('div');
-            delayReverbDiv.className = 'bg-slate-900/60 rounded-xl p-2.5 border border-slate-800/50';
+            delayReverbDiv.className = 'rounded-xl p-2.5 border';
+            delayReverbDiv.style.background = 'var(--bg-card)';
+            delayReverbDiv.style.borderColor = 'var(--border-card)';
             delayReverbDiv.innerHTML = '<h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Delay / Reverb</h3>';
             const drPad = createXYPad(
                 state.delayTime, state.reverbMix, 0, 1, 0, 1,
@@ -2476,11 +2557,11 @@
                     const isCurrent = state.currentStep === col && state.seqRunning;
                     const noteForRow = state.gridNotes[state.gridNotes.length - 1 - row];
                     const isSharpRow = noteForRow && noteForRow.includes('#');
-                    const inactiveBg = isSharpRow ? '#131b2e' : '#0f172a';
+                    const inactiveBg = isSharpRow ? 'var(--bg-cell-sharp)' : 'var(--bg-cell)';
                     cell.style.background = isActive
                         ? isCurrent ? '#38bdf8' : '#6366f1'
-                        : isCurrent ? '#1e293b' : inactiveBg;
-                    cell.style.border = `1px solid ${isCurrent ? '#38bdf844' : '#1e293b'}`;
+                        : isCurrent ? 'var(--bg-cell-current)' : inactiveBg;
+                    cell.style.border = `1px solid ${isCurrent ? '#38bdf844' : 'var(--border-subtle)'}`;
                     cell.style.boxShadow = isActive && isCurrent ? '0 0 8px #38bdf888' : 'none';
                     cell.addEventListener('click', () => { toggleGridCell(row, col); });
                     colDiv.appendChild(cell);
@@ -2590,8 +2671,8 @@
                         const color = partColors[state.drumParts[row]] || '#fb923c';
                         cell.style.background = isActive
                             ? isCurrent ? color : color + '88'
-                            : isCurrent ? '#1e293b' : '#0f172a';
-                        cell.style.border = `1px solid ${isCurrent ? color + '44' : '#1e293b'}`;
+                            : isCurrent ? 'var(--bg-cell-current)' : 'var(--bg-cell)';
+                        cell.style.border = `1px solid ${isCurrent ? color + '44' : 'var(--border-subtle)'}`;
                         cell.style.boxShadow = isActive && isCurrent ? `0 0 8px ${color}88` : 'none';
                         cell.addEventListener('click', () => toggleDrumCell(row, col));
                         colDiv.appendChild(cell);
@@ -2753,8 +2834,8 @@
                         const color = noteColors[reversedNotes[ri]] || '#10b981';
                         cell.style.background = isActive
                             ? isCurrent ? color : color + '88'
-                            : isCurrent ? '#1e293b' : '#0f172a';
-                        cell.style.border = `1px solid ${isCurrent ? color + '44' : '#1e293b'}`;
+                            : isCurrent ? 'var(--bg-cell-current)' : 'var(--bg-cell)';
+                        cell.style.border = `1px solid ${isCurrent ? color + '44' : 'var(--border-subtle)'}`;
                         cell.style.boxShadow = isActive && isCurrent ? `0 0 8px ${color}88` : 'none';
                         cell.addEventListener('click', () => toggleBassCell(actualRow, col));
                         colDiv.appendChild(cell);

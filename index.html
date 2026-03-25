@@ -2157,12 +2157,13 @@
                 };
 
                 function getActiveValue(key) {
+                    if (state.pedalBypassed[key]) return 'Bypassed';
                     switch(key) {
-                        case 'filter': return state.filterFreq < 4999 || state.filterRes > 1.1 ? Math.round(state.filterFreq) + 'Hz' : 'Off';
-                        case 'distortion': return state.distortion > 0 ? Math.round(state.distortion * 100) + '%' : 'Off';
-                        case 'chorus': return state.chorus > 0 ? state.chorus.toFixed(1) : 'Off';
-                        case 'delay': return state.delayTime > 0.01 ? (state.delayTime * 1000).toFixed(0) + 'ms' : 'Off';
-                        case 'reverb': return state.reverbMix > 0.01 ? Math.round(state.reverbMix * 100) + '%' : 'Off';
+                        case 'filter': return state.filterFreq < 4999 || state.filterRes > 1.1 ? Math.round(state.filterFreq) + 'Hz' : 'Ready';
+                        case 'distortion': return state.distortion > 0 ? Math.round(state.distortion * 100) + '%' : 'Ready';
+                        case 'chorus': return state.chorus > 0 ? state.chorus.toFixed(1) : 'Ready';
+                        case 'delay': return state.delayTime > 0.01 ? (state.delayTime * 1000).toFixed(0) + 'ms' : 'Ready';
+                        case 'reverb': return state.reverbMix > 0.01 ? Math.round(state.reverbMix * 100) + '%' : 'Ready';
                         default: return '';
                     }
                 }
